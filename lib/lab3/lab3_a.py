@@ -1,75 +1,54 @@
-from numba import cuda
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import torch
 
 
-@cuda.jit
-def shift_kernel(input_image, output_image, shift_x, shift_y):
-    y, x = cuda.grid(2)
-    empty_pixels = (73, 38, 187)
-    if x < input_image.shape[1] and y < input_image.shape[0]:
-        new_x = x - shift_x
-        new_y = y - shift_y
-        if 0 <= new_x < input_image.shape[1] and 0 <= new_y < input_image.shape[0]:
-            for c in range(input_image.shape[2]):
-                output_image[y, x, c] = input_image[new_y, new_x, c]
-        else:
-            for c in range(input_image.shape[2]):
-                output_image[y, x, c] = empty_pixels[c]
+def shift_image(input_image, shift_x, shift_y):
+    input_tensor = torch.from_numpy(input_image).permute(2, 0, 1).unsqueeze(0).float()
+    output_tensor = torch.zeros_like(input_tensor)
 
+    input_tensor = input_tensor.to(device='mps')
+    output_tensor = output_tensor.to(device='mps')
 
-def shift_image(input_image):
-    threadsperblock = (16, 16)
-    blockspergrid_y = (input_image.shape[0] + threadsperblock[0] - 1) // threadsperblock[0]
-    blockspergrid_x = (input_image.shape[1] + threadsperblock[1] - 1) // threadsperblock[1]
-    blockspergrid = (blockspergrid_y, blockspergrid_x)
+    _, _, h, w = input_tensor.shape
+    grid_y, grid_x = torch.meshgrid(torch.arange(h), torch.arange(w), indexing='ij')
+    grid_y = grid_y.to(device='mps')
+    grid_x = grid_x.to(device='mps')
 
-    d_input_image = cuda.to_device(input_image.astype(np.float32))
-    d_output_image = cuda.device_array(input_image.shape, dtype=np.float32)
+    new_grid_y = grid_y - shift_y
+    new_grid_x = grid_x - shift_x
 
-    shift_x = 200
-    shift_y = 80
-    shift_kernel[blockspergrid, threadsperblock](d_input_image,
-                                                 d_output_image, shift_x, shift_y)
-    output_image = d_output_image.copy_to_host().astype(np.uint8)
+    mask_y = (new_grid_y >= 0) & (new_grid_y < h)
+    mask_x = (new_grid_x >= 0) & (new_grid_x < w)
+    mask = mask_y & mask_x
+
+    output_tensor[0, :, mask] = input_tensor[0, :, new_grid_y[mask], new_grid_x[mask]]
+    output_image = output_tensor.squeeze(0).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
     return output_image
 
 
-@cuda.jit
-def blur_kernel(input_image, output_image):
-    y, x = cuda.grid(2)  # Поменяли местами x и y
-    if x < input_image.shape[1] and y < input_image.shape[0]:
-        for c in range(input_image.shape[2]):
-            if 0 < x < input_image.shape[1] - 1 and 0 < y < input_image.shape[0] - 1:
-                output_image[y, x, c] = (
-                                                input_image[y - 1, x - 1, c] + input_image[y - 1, x, c] +
-                                                input_image[y - 1, x + 1, c] +
-                                                input_image[y, x - 1, c] + input_image[y, x, c] +
-                                                input_image[y, x + 1, c] +
-                                                input_image[y + 1, x - 1, c] + input_image[y + 1, x, c] +
-                                                input_image[y + 1, x + 1, c]) / 9
-            else:
-                output_image[y, x, c] = input_image[y, x, c]
-
-
 def blur_image(input_image):
-    threadsperblock = (16, 16)
-    blockspergrid_y = (input_image.shape[0] + threadsperblock[0] - 1) // threadsperblock[0]
-    blockspergrid_x = (input_image.shape[1] + threadsperblock[1] - 1) // threadsperblock[1]
-    blockspergrid = (blockspergrid_y, blockspergrid_x)
+    input_tensor = torch.from_numpy(input_image).permute(2, 0, 1).unsqueeze(0).float()
 
-    d_input_image = cuda.to_device(input_image.astype(np.float32))
-    d_output_image = cuda.device_array(input_image.shape, dtype=np.float32)
+    input_tensor = input_tensor.to(device='mps')
 
-    blur_kernel[blockspergrid, threadsperblock](d_input_image,
-                                                d_output_image)
-    output_image = d_output_image.copy_to_host().astype(np.uint8)
+    kernel = torch.tensor([[1, 1, 1],
+                           [1, 1, 1],
+                           [1, 1, 1]], dtype=torch.float32).to(device='mps') / 9
+
+    kernel = kernel.view(1, 1, 3, 3).repeat(input_tensor.shape[1], 1, 1, 1)
+
+    output_tensor = torch.nn.functional.conv2d(input_tensor, kernel, padding=1, groups=input_tensor.shape[1])
+
+    output_image = output_tensor.squeeze(0).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
     return output_image
 
 
 def processing_image(input_image):
-    output_image_shifted = shift_image(input_image)
+    shift_x = 200
+    shift_y = 80
+    output_image_shifted = shift_image(input_image, shift_x, shift_y)
     output_image_blurred = blur_image(output_image_shifted)
     return output_image_blurred
 
@@ -80,16 +59,8 @@ def show_image(image):
     plt.show()
 
 
-images = {size: cv2.imread(f'/kaggle/input/parallel/{size}.jpg') for size in [1024, 10240, 12800, 20480]}
+images = {size: cv2.imread(f'/Users/dayveed/Downloads/Dashatars copy.png') for size in [1024, 10240, 12800, 20480]}
 
-# %%timeit -n 3 -r 1
-# result = processing_image(images[10240])
-#
-# %%timeit -n 3 -r 1
-# result = processing_image(images[12800])
-#
-# %%timeit -n 3 -r 1
-# result = processing_image(images[20480])
-#
-# result = processing_image(images[1024])
-# show_image(result)
+if __name__ == "__main__":
+    result = processing_image(images[1024])
+    show_image(result)

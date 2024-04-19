@@ -7,14 +7,7 @@ from PIL import Image
 np.set_printoptions(threshold=np.inf)
 
 sizes = [1024, 1280, 1920]
-images = {size: np.array(Image.open(f"{size}.jpg")) for size in sizes}
-
-
-def pprint(nparray, n):
-    for i in range(n):
-        for j in range(n):
-            print(nparray[i][j], end=" ")
-        print()
+images = {size: np.array(Image.open(f"/Users/dayveed/Downloads/Dashatars copy.png")) for size in sizes}
 
 
 def processing_row(args):
@@ -38,7 +31,7 @@ def processing_row(args):
     return result
 
 
-def processing_image(image, n_threads, output='result.png'):
+def processing_image(image, n_threads, output):
     with mp.Pool(n_threads) as p:
         results = p.map(processing_row, [(i, image) for i in range(image.shape[0])])
         results = np.array(results)
@@ -55,7 +48,7 @@ if __name__ == "__main__":
             for i in range(n):
                 image = images[size]
                 start = time.perf_counter()
-                processing_image(image, n_threads, output=f'result{size}.png')
+                processing_image(image, n_threads, output=f'result_lab2b{size}.png')
                 finish = time.perf_counter()
                 total_time += finish - start
             total_time /= n

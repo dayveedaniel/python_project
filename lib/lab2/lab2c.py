@@ -9,6 +9,9 @@ from sklearn.metrics.pairwise import euclidean_distances
 
 
 def processing_points(args):
+    """
+    Calculate the average distance of points in a cluster to the cluster center.
+    """
     points, center = args
     res = 0
     for p in points:
@@ -17,13 +20,19 @@ def processing_points(args):
 
 
 def plot(data, centers):
+    """
+    Visualize the clustering results using a scatter plot.
+    """
     plt.figure(figsize=(12, 9))
     plt.scatter(data["Platelets_mean"], data["Temp_mean"], s=12, c=data["Cluster"], linewidths=0.3, edgecolors="black")
-    plt.scatter(centers[:, 0], centers[:, 1], s=100, c="red", edgecolors="black");
+    plt.scatter(centers[:, 0], centers[:, 1], s=100, c="red", edgecolors="black")
     plt.show()
 
 
 def calculating_index(df, k, n_threads):
+    """
+    Calculate the Davies-Bouldin index for a given clustering solution.
+    """
     centers = kmeans.cluster_centers_
     clusters = range(k)
     cluster_points = []
@@ -49,19 +58,29 @@ def calculating_index(df, k, n_threads):
 
 
 if __name__ == "__main__":
+    # Load and preprocess the dataset
     df = pd.read_csv("BD-patients.csv")[["Platelets_mean", "Temp_mean"]]
     df = df.dropna()
     df = (df - df.mean(axis=0)) / df.std(axis=0)
     df = df[(abs(df["Platelets_mean"]) < 10) & (abs(df["Temp_mean"]) < 10)]
 
+    # Define the range of threads and sample sizes to test
     test_threads = list(range(2, 17, 2))
     test_size = [1000, 3000, 5000]
+
+    # Iterate over different values of K and sample sizes
     for k in range(3, 6):
         for size in test_size:
             new_df = df[:size].copy()
+
+            # Perform K-means clustering
             kmeans = KMeans(n_clusters=k, n_init=10, random_state=0)
             new_df["Cluster"] = kmeans.fit_predict(new_df)
+
+            # Visualize the clustering results
             plot(new_df, kmeans.cluster_centers_)
+
+            # Evaluate the performance for different numbers of threads
             for n_threads in test_threads:
                 start = time.perf_counter()
                 db_index = calculating_index(new_df, k, n_threads)

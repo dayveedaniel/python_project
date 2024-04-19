@@ -10,13 +10,6 @@ sizes = [1024, 1280, 1920]
 images = {size: np.array(Image.open(f"/Users/dayveed/Downloads/Dashatars copy.png")) for size in sizes}
 
 
-def pprint(nparray, n):
-    for i in range(n):
-        for j in range(n):
-            print(nparray[i][j], end=" ")
-        print()
-
-
 def processing_row(args):
     y, image, x_shift, y_shift = args
     result = np.zeros(shape=(image.shape[1], 3), dtype="uint8")
@@ -45,7 +38,7 @@ def processing_image(image, n_threads):
                                          range(image.shape[0])])
         results = np.array(results)
         image_result = Image.fromarray(results, 'RGB')
-        image_result.save('result.jpg')
+        image_result.save('result_lab2.jpg')
 
 
 if __name__ == "__main__":

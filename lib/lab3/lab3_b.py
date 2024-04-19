@@ -45,36 +45,29 @@ compressed_pixel;
 
     program = cl.Program(context, kernel_code).build()
     result_gpu = cl.array.empty_like(image_gpu)
-    threads_per_block = (16, 16)
-    program.subtract_images(queue, image.shape[:2], threads_per_block, image_gpu.data, compressed_gpu.data,
+    #threads_per_block = device.max_work_group_size()
+    program.subtract_images(queue, image.shape[:2], None, image_gpu.data, compressed_gpu.data,
                             result_gpu.data, np.int32(image.shape[1]), np.int32(image.shape[0]),
                             np.int32(compressed.shape[1]), np.int32(compressed.shape[0]))
     result = image_gpu.get()
     return result
 
 
-sizes = [1024, 10240, 12800, 20480]
-images = {size: [cv2.imread(f'/kaggle/input/parallel/{size}.jpg')] for size
-          in sizes}
-for size in sizes:
-    images[size].append(cv2.resize(images[size][0], list(map(lambda x: x // 4,
-                                                             images[size][0].shape[1::-1]))))
-compressed = cv2.resize(images[1024][0], list(map(lambda x: x // 4,
-                                                  images[1024][0].shape[1::-1])))
-plt.imshow(cv2.cvtColor(compressed, cv2.COLOR_BGR2RGB))
-plt.axis('off')
-plt.show()
+def show_image(image):
+    plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    plt.axis('off')
+    plt.show()
 
-result = processing_image(*images[1024])
-plt.imshow(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
-plt.axis('off')
-plt.show()
 
-# %%timeit -n 3 -r 1
-# result = processing_image(*images[10240])
-#
-# %%timeit -n 3 -r 1
-# result = processing_image(*images[12800])
-#
-# %%timeit -n 3 -r 1
-# result = processing_image(*images[20480])
+if __name__ == "__main__":
+    sizes = [1024, 10240, 12800, 20480]
+    images = {size: [cv2.imread(f'/Users/dayveed/Downloads/Dashatars copy.png')] for size
+              in sizes}
+    for size in sizes:
+        images[size].append(cv2.resize(images[size][0], list(map(lambda x: x // 4,
+                                                                 images[size][0].shape[1::-1]))))
+        compressed = cv2.resize(images[1024][0], list(map(lambda x: x // 4,
+                                                      images[1024][0].shape[1::-1])))
+
+    result = processing_image(*images[1024])
+    show_image(result)

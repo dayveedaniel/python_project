@@ -23,3 +23,4 @@ task4 = task4.select("year_built")
 task4.show(10)
 
 spark.stop()
+
