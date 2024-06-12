@@ -17,7 +17,9 @@ Load a color image.
 On the basis of the image build the next level of the Gaussian pyramid (i.e. reduce the size of the image by half).
 
 
+
 **Labs 5 - Working with the Apache Spark distributed computing framework**
+
 Program A (working with Spark SQL component) is a set of queries to the database 'brooklyn_sales_map.csv'.
 Program B (working with Spark MLlib component) builds three machine learning models: logistic regression, decision tree and random forest for the data set specified in the variant. For each algorithm, the best model should be obtained by finding the best set of its parameters. For the logistic regression algorithm, these parameters are maxIter=10...10000, regParam>0 (0.1, 0.5, 1, ...), elasticNetParam=0...1. For the decision tree maxDepth > 0 (3, 5, 9, 12, ...). For the random forest maxDepth > 0 (3, 5, 9, 12, ...) and numTree > 0 (5, 11, 25, ...). Obtain the values of Confusion Matrix (Confusion Matrix), Fidelity (Accuracy), Completeness (Recall) and Precision (Precision) for all models.
 
